@@ -37,7 +37,7 @@
 - 引擎决策：旁白 ≤5.1s → H3-TALK；>5.1s → S2V 720p；无旁白 → H3-I2V 微动。详见 digital-human.md。
 - 首帧一律走 PE（`layout=talker`）——⛔ 参考路线（r2v 直接吃角色卡）脸特征消失已证伪，只走首帧路线。
 - 构图卡开口（卡面带文字）允许 H3-TALK，但**必须过文字稳定性闸门**（qc_gates.py text）；不过→降级 talker 版式+字幕层。
-- 生成后自动 `-an` 剥音轨+ffprobe 复验（脚本内置）；GPU：与生图/llama/TTS 互斥，kill→free→load 串行。
+- 生成后自动 `-an` 剥音轨+ffprobe 复验（脚本内置）；GPU：与生图 TE/TTS 互斥，kill→free→load 串行。
 
 ## Step 8 运镜段（blender_scene.py，可选）
 - 「数据长廊」两镜：开场 dolly_in / 收尾 pull_out；图表面板贴**真实图表 PNG**。
@@ -55,7 +55,7 @@
 4. 被否三式（勿回潮）：斜纹块、纯文字无图形、花哨渐变堆砌。
 
 ## Step 11 三步式合成（compose_3step.py）
-- Step1 视频链：各输入 fps/scale/pad/setsar 归一→xfade 链→水印 overlay→ASS 字幕（hardburn）。
+- Step1 视频链：各输入 fps/scale/pad/setsar 归一→xfade 链→水印 overlay→ASS 硬字幕 burn-in。
 - Step2 音轨：BGM volume≈0.14 + 每段旁白 adelay 精确到段起点→amix→淡入淡出。
 - Step3 无损合并。⛔ 禁 filter_complex 单巨链；输出全新唯一名；中间产物唯一临时目录。
 - ASS：Events Format 全 10 字段（6 字段会把坐标吃进文本）；字幕 MarginV≈96；每条字幕结束=本段尾。

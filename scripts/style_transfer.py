@@ -13,7 +13,7 @@
 用法：
   python3 style_transfer.py --image raw.png --ref style_ref.png \
       --instruction "按图2风格渲染图1场景，保持构图与结构完全不变" \
-      --out styled.png --output-dir <ComfyUI输出目录> --wait
+      --out styled.png --input-dir <ComfyUI实例input目录> --output-dir <同实例output目录>
 """
 import argparse, json, os, shutil, subprocess, sys, time
 
@@ -49,20 +49,22 @@ def main():
     ap.add_argument("--instruction", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--edit-url", default="http://127.0.0.1:8190")
-    ap.add_argument("--output-dir", required=True, help="ComfyUI 实例 output 目录")
+    ap.add_argument("--input-dir", required=True, help="ComfyUI 实例 input 目录（LoadImage 从这里读）")
+    ap.add_argument("--output-dir", required=True, help="ComfyUI 实例 output 目录（回捞）")
     ap.add_argument("--seed", type=int, default=7)
     ap.add_argument("--timeout-min", type=float, default=15.0)
     a = ap.parse_args()
     assert os.path.exists(a.image) and os.path.exists(a.ref)
 
     for f in (a.image, a.ref):
-        dst = os.path.join(a.output_dir, os.path.basename(f))
+        dst = os.path.join(a.input_dir, os.path.basename(f))
         if os.path.abspath(f) != os.path.abspath(dst):
             shutil.copyfile(f, dst)
 
     prefix = "spv_style_%d" % int(time.time())
     graph = build_graph(os.path.basename(a.image), os.path.basename(a.ref), a.instruction, a.seed, prefix)
-    pf = "/tmp/_spv_style.json"
+    import tempfile
+    pf = os.path.join(tempfile.mkdtemp(prefix="spv_style_"), "payload.json")
     json.dump({"prompt": graph}, open(pf, "w"), ensure_ascii=False)
     r = subprocess.run(["curl", "-s", "-m", "30", "-X", "POST", "-H", "Content-Type: application/json",
                         "-d", "@" + pf, a.edit_url + "/prompt"], capture_output=True, text=True)

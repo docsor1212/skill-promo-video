@@ -20,10 +20,10 @@ def main():
     fails = []
     for seg in segs:
         wav = os.path.join(a.out_dir, seg["id"] + ".wav")
-        txt = seg["tts"].replace("？", "。").replace("?", "。")  # E14：问号静默失败
-        r = subprocess.run(f'bash {a.medtts} "{txt}" "{wav}"', shell=True,
+        txt = seg["tts"].replace("？", "。").replace("?", "。")  # pitfalls #17：问号静默失败
+        r = subprocess.run(["bash", a.medtts, txt, wav],
                            capture_output=True, text=True, timeout=300)
-        # E02：rc=0 不可信，验文件+mtime
+        # pitfalls #2：rc=0 不可信，验文件+mtime+size
         if (not os.path.exists(wav)) or os.path.getmtime(wav) < t0 or os.path.getsize(wav) < 1000:
             fails.append(seg["id"])
             print(seg["id"], "FAIL（无输出/mtime 陈旧——疑 GPU OOM，先清显存重跑）",

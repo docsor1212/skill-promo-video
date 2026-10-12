@@ -1,9 +1,13 @@
 # -*- coding: utf-8 -*-
 """三步式合成模板——skill-promo-video
 Step1 视频链（xfade+水印overlay+ASS字幕）→ Step2 音轨（BGM+旁白adelay）→ Step3 合并。
-用法：python3 compose_3step.py --config <cfg> --segs <segs.json> --narr <narr.json> --out <out.mp4>
-segs.json: [{kind:png|vid, src, dur}]；narr.json: [{t0,t1,id}]（t0/t1 秒，由段表推得）。
-纪律：输出每次全新唯一名；执行前 grep 验证；字幕结束=图页尾。
+用法（全部必填）：
+  python3 compose_3step.py --segs segs.json --narr narr.json --subs-map subs.json \
+      --tts-dir tts/ --bgm bgm.mp3 --watermark wm.png --ass subs.ass --out final.mp4
+  segs.json: [["png"|"vid", 路径, png段时长秒(vid 忽略)], ...]
+  narr.json: [{"t0","t1","id"}, ...]（秒；id 对应 tts-dir 下 <id>.wav 与 subs-map 键）
+  subs.json: {"<id>": "字幕文本"}
+纪律：输出每次全新唯一名；中间产物唯一临时目录；字幕结束=所在段尾（防溢出下一段）。
 """
 import json, subprocess, sys, argparse
 

@@ -41,7 +41,7 @@ Blender 开场运镜（数据长廊推进，≈4.5s，可选）
 
 1. 策划：2 个核心卖点 + 3-4 项硬背书（评分/下载走 API 实测，榜单口径与用户核对）
 2. 数据工程：贴近目标用户领域；真实公开数据集优先（来源注脚如实标注）
-3. 图表渲染：目标产品引擎 150dpi/16:9（森林=HR 量级化；火山=构造式三带；复合=短标签）
+3. 图表渲染：目标产品的图表引擎（matplotlib 栈）150dpi/16:9（森林=HR 量级化；火山=构造式三带；复合=短标签）
 4. 人物资产：用户自备角色卡/定妆照；PE 参考图键名 `images.image_1` 带点嵌套+TE 接 `vae`；
    换装=config `character.costume` 一行（正向描述，cfg=1 负向无效）
 5. 构图卡/口播首帧：`gen_scene_cards.py`（layout=card|talker）；PE 直出文字（⛔零 PIL 贴补）；
@@ -49,9 +49,9 @@ Blender 开场运镜（数据长廊推进，≈4.5s，可选）
 6. 图页版式：底图全部定稿**之后**才合成版式（⛔ 旧图混入两次的根因）
 7. 口播段：`talking_segment.py` 双引擎决策（≤5.1s→H3-TALK；>5.1s→S2V 720p；无旁白→H3-I2V 微动；
    引擎决策树 references/digital-human.md）；⛔输出段一律 `-an` 剥音轨；⛔r2v 参考生成已证伪只走首帧
-8. TTS：`tts_batch.py`（⛔文本去「？」；⛔逐个验 wav mtime+size 防 GPU OOM 假 OK）
-9. 运镜段（可选）：`blender_scene.py` headless Cycles 数据长廊两镜；⛔EEVEE 无头黑帧风险；
-   不过验收降级静帧+zoompan，不硬磕
+8. 运镜段（可选）：`blender_scene.py` headless Cycles 数据长廊两镜；⛔EEVEE 无头黑帧风险；
+   不过验收降级静帧+zoompan，不硬磕；（可选）`style_transfer.py` 素模风格化重绘
+9. TTS：`tts_batch.py`（⛔文本去「？」；⛔逐个验 wav mtime+size 防 GPU OOM 假 OK）
 10. 水印：`make_watermark.py` signature 方法论（版本号不进水印）
 11. 三步式合成：`compose_3step.py`（视频链→音轨→合并；⛔禁单巨链；唯一临时目录；ASS 全 10 字段）
 12. 质检与交付：`qc_gates.py` text/lips/hands/av + FunASR 全轨听写（⛔必须在最终素材后跑）+
@@ -62,21 +62,28 @@ Blender 开场运镜（数据长廊推进，≈4.5s，可选）
 - **需要本地 GPU（≥24G 显存实测可用）与本地部署的推理服务**：文生图（Qwen-Image 系，端口可配，
   默认 127.0.0.1:8190）、数字人视频（H3/S2V 模型栈，默认 8189/8188）、本地 TTS、Blender 4.x+、ffmpeg。
 - 模型均从各官方发布页获取；技能包**不含**任何模型权重与人物资产。
-- 首次使用先跑各脚本 `--help` 核对参数；`talking_segment.py` 提交前自动做节点名与模型在盘预检。
-- 无 GPU/无推理服务时：跳过口播与运镜段，退化为静态图文+旁白管线（其余步骤不变）。
+- 首次使用先跑各脚本 `--help` 核对参数；`talking_segment.py` 提交前自动做节点名与模型在盘预检
+  （模型文件名内置默认值，名称不同时改脚本顶部常量或经参数指定）。
+- Python 依赖仅 Pillow 与 numpy（QC 闸门用）；另需 ffmpeg/ffprobe 与 curl 命令行；
+  水印/字幕需 Noto CJK 字体（缺省路径见 make_watermark.py/compose_3step.py，可改）。
+- 听写闸门（FunASR 类）为外部命令接口（qc_gates.py asr --gate-cmd），听写实现需自备；
+  无听写实现时以人工试听替代该闸门。
+- 无 GPU/无推理服务时：跳过口播与运镜段，退化为静态图文视频（旁白/TTS 也依赖本地算力，
+  无 TTS 时可静音+字幕交付；其余步骤不变）。
 - 单卡显存互斥：生图 TE/H3/S2V/TTS 严禁并发，按 kill→free→load 串行切换。
 
 ## 四、安全与行为声明
 
-- 全流程本地执行：外联仅限**本机回环地址**上的用户自建推理服务（HTTP）与本地 ffmpeg/Blender 子进程；
-  不访问任何远程服务，无遥测，不上传任何数据。
+- 全流程本地执行：外联仅限**本机回环地址**上的用户自建推理服务（HTTP）；子进程仅限本地
+  ffmpeg/ffprobe/Blender/curl/用户本地 TTS；不访问任何远程服务，无遥测，不上传任何数据。
 - 按需单次运行，无常驻后台、无定时任务、不安装依赖（依赖由用户按「环境要求」自行部署）。
-- 中间产物写入用户指定的输出目录；人物参考图与成片均不出本机。
+- 产物写入用户指定的输出目录；QC 抽帧与提交载荷使用系统临时目录（唯一临时目录，用后即弃）；
+  人物参考图与成片均不出本机。
 - 请仅使用你有权使用的人物参考图（肖像授权自审）。
 
 ## 五、参数化（换一份 config = 换一个视频）
 
-`references/config-template.json` 一份 JSON 驱动全部：人物身份锚+服饰（换装）、场景背景、
+`references/config-template.json`（合法 JSON）驱动构图卡/口播首帧的人物与九个案例；其余段以它为单一事实来源派生：人物身份锚+服饰（换装）、场景背景、
 9 个案例（标题/提示词全文/图表命令/来源注脚/旁白/字幕）、背书文案、水印品牌、Blender 参数。
 旁白纪律：陈述句（禁问号——TTS 静默失败）；口播段 ≤5s（H3 单 clip 窗口）；≤ 所在段时长。
 

@@ -16,8 +16,9 @@
 
 用法：
   python3 talking_segment.py --ref first_frame.png --audio narr.wav --prefix s03 \
-      --h3-url http://127.0.0.1:8189 --h3-input <dir> --h3-output <dir> \
-      --scene-prompt "现代诊室暖光背景，固定机位，中景构图"
+      --out segs/s03.mp4 \
+      --scene-prompt "现代诊室暖光背景，固定机位，中景构图" \
+      --h3-url http://127.0.0.1:8189 --h3-root <ComfyUI-H3实例根目录>
 输出：<prefix>.mp4（无声）+ <prefix>_qc/ 抽帧（口型三帧+首尾帧）。
 """
 import argparse, json, math, os, shutil, subprocess, sys, time, uuid
@@ -171,7 +172,7 @@ def run_s2v(a):
     length = int(math.ceil(sec * 16))
     length = length - (length % 4) + 1
     assert length >= 33, "音频过短"
-    use_lora = a.steps <= 4
+    use_lora = a.s2v_steps <= 4
     pos = a.s2v_prompt.strip() or (
         "一位端庄优雅的年轻女性，正面面对镜头讲话，嘴唇随讲话内容自然张合，口型清晰同步，"
         "清透的浅色唇妆，口型开合幅度自然适中，头部随语气轻微自然晃动，手势轻柔配合讲解内容，"
@@ -201,7 +202,7 @@ def run_s2v(a):
             "audio_encoder_output": ["9", 0], "ref_image": ["5", 0]}},
         "12": {"class_type": "KSampler", "inputs": {
             "model": ["10", 0], "positive": ["11", 0], "negative": ["11", 1], "latent_image": ["11", 2],
-            "seed": a.seed, "steps": a.steps, "cfg": a.cfg, "sampler_name": "euler", "scheduler": "simple",
+            "seed": a.seed, "steps": a.s2v_steps, "cfg": a.cfg, "sampler_name": "euler", "scheduler": "simple",
             "denoise": 1.0}},
         "13": {"class_type": "VAEDecode", "inputs": {"samples": ["12", 0], "vae": ["3", 0]}},
         "14": {"class_type": "SaveVideo", "inputs": {"images": ["13", 0], "filename_prefix": a.prefix,
@@ -258,6 +259,8 @@ def main():
     ap.add_argument("--seed", type=int, default=61584)
     ap.add_argument("--steps", type=int, default=8, help="H3 步数（8）；S2V 下 ≤4 启用 Lightning LoRA")
     ap.add_argument("--cfg", type=float, default=1.0)
+    ap.add_argument("--s2v-steps", type=int, default=4,
+                    help="S2V 步数（默认 4=Lightning LoRA；20=全质量约 2h/段）")
     ap.add_argument("--width", type=int, default=1344)
     ap.add_argument("--height", type=int, default=768)
     ap.add_argument("--h3-url", default="http://127.0.0.1:8189")

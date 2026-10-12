@@ -39,8 +39,8 @@ def build(brand, site, motif_fn, W=640, H=150):
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("--brand", default="academic-figures")
-    ap.add_argument("--site", default="docsor.cn")
+    ap.add_argument("--brand", default="your-brand")
+    ap.add_argument("--site", default="example.com")
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     build(a.brand, a.site, motif_scroll_lines).save(a.out)

@@ -16,7 +16,7 @@
       --ref /path/to/character_ref.png --output-dir <ComfyUI实例output目录>
 config 里 character.costume / character.scene_bg 驱动服饰与场景；scene.layout 驱动版式。
 """
-import argparse, json, os, shutil, subprocess, sys, time
+import argparse, json, os, shutil, subprocess, sys, tempfile, time, zlib
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -90,7 +90,7 @@ def http_json(url, payload=None, timeout=20):
     if payload is None:
         r = subprocess.run(["curl", "-s", "-m", str(timeout), url], capture_output=True, text=True)
     else:
-        pf = "/tmp/_spv_pl_%d.json" % int(time.time() * 1000 % 1000000)
+        pf = os.path.join(tempfile.mkdtemp(prefix="spv_pl_"), "payload.json")
         json.dump(payload, open(pf, "w"), ensure_ascii=False)
         r = subprocess.run(["curl", "-s", "-m", str(timeout), "-X", "POST", "-H",
                             "Content-Type: application/json", "-d", "@" + pf, url],
@@ -139,7 +139,7 @@ def main():
             if sc.get("check"):
                 prompt += "\n最终逐行核对（不得缺字、错字、并字、重复）：" + "／".join(
                     "「%s」" % x for x in sc["check"]) + "。"
-        graph = build_graph(prompt, ref_name, a.seed + abs(hash(sc["id"])) % 10000, "promo_" + sc["id"])
+        graph = build_graph(prompt, ref_name, a.seed + zlib.crc32(sc["id"].encode()) % 10000, "promo_" + sc["id"])
         try:
             resp = http_json(a.t2i_url + "/prompt", {"prompt": graph})
         except Exception as e:

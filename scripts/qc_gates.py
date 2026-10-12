@@ -15,7 +15,7 @@
   python3 qc_gates.py av --segs segs.json --narr narr.json
   python3 qc_gates.py asr --video final.mp4 --gate-cmd "python3 /path/delivery_gate.py --media {media} --require {require}"
 """
-import argparse, json, os, subprocess, sys
+import argparse, json, os, subprocess, sys, tempfile
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -29,7 +29,9 @@ def dur(p):
     return float(r.stdout.strip())
 
 
-def grab(video, t, out):
+def grab(video, t, prefix):
+    tmpd = tempfile.mkdtemp(prefix="spv_qc_")
+    out = os.path.join(tmpd, prefix + ".png")
     r = sh(["ffmpeg", "-y", "-ss", "%.2f" % t, "-i", video, "-frames:v", "1", out])
     assert r.returncode == 0, r.stderr[-200:]
     return out
@@ -53,8 +55,8 @@ def region_diff(a_path, b_path, box):
 
 def cmd_text(a):
     d = dur(a.video)
-    f1 = grab(a.video, d * 0.02, "/tmp/_qc_t_first.png")
-    f2 = grab(a.video, d * 0.98, "/tmp/_qc_t_last.png")
+    f1 = grab(a.video, d * 0.02, "first")
+    f2 = grab(a.video, d * 0.98, "last")
     ratio = region_diff(f1, f2, (0.45, 0.05, 0.98, 0.92))  # 右侧卷面文字区（card 版式）
     verdict = "PASS" if ratio <= a.threshold else "FAIL"
     print("TEXT-STABILITY %.4f (阈值 %.3f) -> %s" % (ratio, a.threshold, verdict))
@@ -68,7 +70,7 @@ def cmd_lips(a):
     from PIL import Image
     crops = []
     for i, pct in enumerate((0.15, 0.4, 0.65, 0.9)):
-        f = grab(a.video, d * pct, "/tmp/_qc_l_%d.png" % i)
+        f = grab(a.video, d * pct, "l%d" % i)
         im = Image.open(f).convert("L")
         w, h = im.size
         box = ((0.12, 0.28, 0.30, 0.50) if a.crop == "card" else (0.38, 0.52, 0.62, 0.78))
@@ -86,7 +88,7 @@ def cmd_hands(a):
     outs = []
     from PIL import Image
     for i, pct in enumerate((0.3, 0.7)):
-        f = grab(a.video, d * pct, "/tmp/_qc_h_%d.png" % i)
+        f = grab(a.video, d * pct, "h%d" % i)
         im = Image.open(f)
         w, h = im.size
         crop = im.crop((int(w * 0.25), int(h * 0.55), int(w * 0.75), h))
@@ -100,19 +102,24 @@ def cmd_hands(a):
 
 
 def cmd_av(a):
+    """音画对齐：每条旁白窗口必须完整落在其对应段内（字幕边界=段尾纪律）。"""
     segs = json.load(open(a.segs))
     narr = json.load(open(a.narr))
-    starts, off = {}, 0.0
     FADE = 0.5
-    for kind, src, d in [(s[0], s[1], s[2]) for s in segs]:
-        real = dur(src) if kind == "vid" else d
-        starts[id((kind, src))] = off
-        off += real - FADE
+    spans, t = [], 0.0
+    for k, (kind, src, d) in enumerate(segs):
+        real = dur(src) if kind == "vid" else float(d)
+        spans.append((t, t + real, src))
+        t += real - (FADE if k < len(segs) - 1 else 0)
     problems = []
     for n in narr:
-        # 旁白窗口必须完整落在其对应段内（字幕边界=段尾纪律）
         if n["t1"] - n["t0"] <= 0:
-            problems.append(n["id"] + ": 零长度")
+            problems.append(n["id"] + ": 零长度窗口"); continue
+        span = next((sp for sp in spans if n["id"] in os.path.basename(sp[2])), None)
+        if span is None:
+            problems.append(n["id"] + ": 段表中找不到对应段（id 须为段文件名子串）"); continue
+        if n["t0"] < span[0] - 0.01 or n["t1"] > span[1] + 0.01:
+            problems.append("%s: 窗口[%.2f,%.2f] 越出段[%.2f,%.2f]" % (n["id"], n["t0"], n["t1"], span[0], span[1]))
     print("AV-CHECK segments=%d narrations=%d -> %s" % (len(segs), len(narr), "PASS" if not problems else problems))
     sys.exit(1 if problems else 0)
 
@@ -148,7 +155,8 @@ def main():
     p.add_argument("--narr", required=True); p.set_defaults(fn=cmd_av)
 
     p = sub.add_parser("asr"); p.add_argument("--video", required=True)
-    p.add_argument("--gate-cmd", default=""); p.add_argument("--require", default="")
+    p.add_argument("--gate-cmd", default="", help="外部听写闸门命令模板（经 shell 执行；{media} {require} 占位）")
+    p.add_argument("--require", default="")
     p.set_defaults(fn=cmd_asr)
 
     a = ap.parse_args()
