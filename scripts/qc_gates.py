@@ -73,7 +73,7 @@ def cmd_lips(a):
         f = grab(a.video, d * pct, "l%d" % i)
         im = Image.open(f).convert("L")
         w, h = im.size
-        box = ((0.12, 0.28, 0.30, 0.50) if a.crop == "card" else (0.38, 0.52, 0.62, 0.78))
+        box = ((0.10, 0.10, 0.55, 0.55) if a.crop == "card" else (0.38, 0.52, 0.62, 0.78))
         crops.append(np.asarray(im.crop((int(w * box[0]), int(h * box[1]), int(w * box[2]), int(h * box[3]))), dtype=np.int16))
     diffs = [float(np.abs(crops[i + 1] - crops[i]).mean()) for i in range(len(crops) - 1)]
     motion = max(diffs)
@@ -144,7 +144,7 @@ def main():
     p = sub.add_parser("lips"); p.add_argument("--video", required=True)
     p.add_argument("--min-spread", type=float, default=6.0)
     p.add_argument("--crop", choices=["card", "talker"], default="talker",
-                   help="card=人物在左半（x12-30%,y28-50%）；talker=人物居中（x38-62%,y52-78%）")
+                   help="card=人物在左/中左（面部区 x10-55%,y10-55%）；talker=人物居中（x38-62%,y52-78%）")
     p.set_defaults(fn=cmd_lips)
 
     p = sub.add_parser("hands"); p.add_argument("--video", required=True)
