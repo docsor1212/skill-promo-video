@@ -132,6 +132,13 @@ def main():
         layout = sc.get("layout", "card")
         if layout == "card":
             prompt = build_prompt_card(sc, ch, bg)
+        elif layout == "talker_left":
+            # 人物严格左置 1/3，右 2/3 干净墙面（配合 card_composite.py 静态面板；
+            # H3-TALK 对同框文字有融化风险时用此降级，见 pitfalls #34）
+            prompt = build_prompt_talker(sc, ch, bg).replace(
+                "一张16:9横版人物口播画面，中景构图，背景干净不繁杂。",
+                "一张16:9横版人物口播画面，人物位于画面左侧三分之一（身体的右缘不超过画面宽度百分之四十），"
+                "右侧三分之二为干净的暖灰色纯色渐变墙面，无任何文字、图形与杂物。中景构图。")
         elif layout == "talker":
             prompt = build_prompt_talker(sc, ch, bg)
         else:  # raw：整段自定义文案，{person}=人物描述占位
