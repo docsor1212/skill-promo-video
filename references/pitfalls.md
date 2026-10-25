@@ -62,5 +62,5 @@
 48. **口播段重生成时序**：TTS 新旁白先生成并校验（transcribe 确认内容），再跑 talking_segment；两者并行抢 GPU+旧旁白开跑=废一段。
 49. **飞书交付文件命名禁内部版本号**（v2/v4/v6 用户误以为没更新）——用清晰中文名（如"XX skill 推广视频_完整版_80秒.mp4"）。
 50. **demo 场景类型不得与已有图页重复**（仪表盘×2/落地页×2=叙事冗余）；每个案例应展示一种新场景类型。
-37. **Blender 相机俯仰角符号**：rotation_euler X=+θ°（如 87.5°）会让相机朝 **+Y（身后）** 看——长廊/走廊沿 -Y 布景时全程拍空墙，且黑场+地板反射极易误诊为灯光问题（本次连调 6 轮灯光全白费）。铁律：布景在 -Y 方向时俯仰一律负值（-87.5°）；黑场先用 Workbench FLAT+RANDOM 模式做几何普查定责，再调灯光。
-38. **Principled BSDF 发光通道不可靠**（5.x 实测 Emission Color 链接+Strength=6 渲染仍黑）：灯箱/面板一律用 Emission 着色器直连 Material Output.Surface。
+39. **Blender 相机俯仰角符号**：rotation_euler X=+θ°（如 87.5°）会让相机朝 **+Y（身后）** 看——长廊/走廊沿 -Y 布景时全程拍空墙，且黑场+地板反射极易误诊为灯光问题（本次连调 6 轮灯光全白费）。铁律：布景在 -Y 方向时俯仰一律负值（-87.5°）；黑场先用 Workbench FLAT+RANDOM 模式做几何普查定责，再调灯光。
+40. **Principled BSDF 发光通道不可靠**（5.x 实测 Emission Color 链接+Strength=6 渲染仍黑）：灯箱/面板一律用 Emission 着色器直连 Material Output.Surface。
