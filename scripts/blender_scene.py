@@ -46,19 +46,21 @@ def mat_simple(name, color, rough=0.4, metal=0.0, emit=None, emit_strength=1.0):
 
 
 def mat_chart(img_path, glow=1.6):
-    """图表面板：emission 贴图（自发光=展馆灯箱感），附 alpha 裁边。"""
+    """图表面板：Emission 着色器直连输出（灯箱行为，不依赖 Principled 发光通道）。"""
     m = bpy.data.materials.new("chart_" + os.path.basename(img_path)[:12])
     m.use_nodes = True
     nt = m.node_tree
-    bsdf = nt.nodes["Principled BSDF"]
+    out = nt.nodes["Material Output"]
+    for n in list(nt.nodes):
+        if n != out:
+            nt.nodes.remove(n)
     tex = nt.nodes.new("ShaderNodeTexImage")
     tex.image = bpy.data.images.load(img_path)
-    nt.links.new(tex.outputs["Color"], bsdf.inputs["Emission Color"])
-    try:
-        bsdf.inputs["Emission Strength"].default_value = glow
-    except KeyError:
-        pass
-    bsdf.inputs["Roughness"].default_value = 0.9
+    tex.image.colorspace_settings.name = "sRGB"
+    em = nt.nodes.new("ShaderNodeEmission")
+    em.inputs["Strength"].default_value = glow
+    nt.links.new(tex.outputs["Color"], em.inputs["Color"])
+    nt.links.new(em.outputs["Emission"], out.inputs["Surface"])
     return m
 
 
@@ -84,7 +86,7 @@ def build_hall(charts, hall_len=42.0):
         x = side * 3.4
         yaw = math.pi / 2 - side * math.radians(4)
         p = add_plane("chart_%d" % i, 1.0, (x, y, 2.6), (math.pi / 2, 0, yaw),
-                      mat_chart(c, glow=6.0))
+                      mat_chart(c, glow=2.2))
         p.scale = (3.36, 1.89, 1.0)  # 16:9 面板
         # 面板背光条：金色细发光框（在图表外侧后方，避免遮挡面板）
         add_plane("edge_%d" % i, 1.0, (x + side * 0.07, y, 2.6),
@@ -113,7 +115,7 @@ def setup_camera(scene_kind, n_frames):
     except (AttributeError, TypeError):
         pass
     fill_data = bpy.data.lights.new("fill", type="AREA")
-    fill_data.energy = 800.0
+    fill_data.energy = 2600.0
     fill_data.size = 6.0
     fill = bpy.data.objects.new("fill", fill_data)
     bpy.context.collection.objects.link(fill)
@@ -132,12 +134,13 @@ def setup_camera(scene_kind, n_frames):
         cam.keyframe_insert(data_path="rotation_euler", frame=f)
 
     import mathutils
+    # ⛔俯仰角必须为负：Blender 相机默认看本地 -Z，X 旋转 +θ 会朝 +Y（背后）看
     if scene_kind == "dolly_in":
-        key(mathutils.Vector((0, 6.0, 2.2)), mathutils.Euler((math.radians(87.5), 0, 0)), 1)
-        key(mathutils.Vector((0, -16.0, 2.3)), mathutils.Euler((math.radians(89), 0, 0)), n_frames)
-    else:  # pull_out
-        key(mathutils.Vector((0, -36.0, 2.6)), mathutils.Euler((math.radians(90), 0, 0)), 1)
-        key(mathutils.Vector((0, 6.0, 6.2)), mathutils.Euler((math.radians(70), 0, 0)), n_frames)
+        key(mathutils.Vector((0, 6.0, 2.2)), mathutils.Euler((math.radians(-87.5), 0, 0)), 1)
+        key(mathutils.Vector((0, -16.0, 2.3)), mathutils.Euler((math.radians(-89), 0, 0)), n_frames)
+    else:  # pull_out：从主面板处后退拉远升起，俯角渐增俯瞰全廊
+        key(mathutils.Vector((0, -36.0, 2.6)), mathutils.Euler((math.radians(-90), 0, 0)), 1)
+        key(mathutils.Vector((0, 6.0, 6.2)), mathutils.Euler((math.radians(-70), 0, 0)), n_frames)
 
 
 def main():
@@ -187,7 +190,7 @@ def main():
     sc.frame_start, sc.frame_end = 1, a.frames
     sc.render.image_settings.file_format = "PNG"
     sc.view_settings.view_transform = "Filmic"
-    sc.view_settings.exposure = 0.9
+    sc.view_settings.exposure = 0.55
     sc.view_settings.look = "Medium High Contrast"
 
     clear_scene()
@@ -196,7 +199,7 @@ def main():
     w = bpy.data.worlds.new("w")
     w.use_nodes = True
     bg = w.node_tree.nodes["Background"]
-    bg.inputs[0].default_value = (0.12, 0.13, 0.17, 1.0)
+    bg.inputs[0].default_value = (0.32, 0.34, 0.42, 1.0)
     bg.inputs[1].default_value = 1.0
     sc.world = w
     setup_camera(a.scene, a.frames)
