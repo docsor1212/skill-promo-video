@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """QC 闸门编排——skill-promo-video v2
 
-五道闸（按 SOP 顺序）：
+六道闸（按 SOP 顺序）：
   text    文字稳定性：talking 卡段首/尾帧文字区像素差（漂移超标=引擎把卡面文字画花了）
   lips    口型运动：三帧嘴部区域方差（运动量过低=没在说话/静态）
   hands   手部抽帧：2 帧手部区 3x 放大裁片（供逐指清点——多指/并指一票否决，人工/judge 复核）
   av      音画对齐：段表×旁白表一致性（旁白不得长于所在卡段）
   asr     听写闸门：调外部 FunASR 闸门命令（--gate-cmd 模板，可选）
+  narr    旁白数字口径闸：成数词族/口语百分点/tts 读法展开与 % 直读（10-22 立规，
+          根治「一成六」类缺陷——正本 narr_audit.py，exit 1 即拦截发车）
 
 用法：
   python3 qc_gates.py text --video s03.mp4 --prefix s03
@@ -134,6 +136,14 @@ def cmd_asr(a):
     print("ASR GATE PASS")
 
 
+def cmd_narr(a):
+    from narr_audit import audit
+    rc = 0
+    for p in a.tts:
+        rc |= audit(p)
+    sys.exit(rc)
+
+
 def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="gate", required=True)
@@ -153,6 +163,8 @@ def main():
 
     p = sub.add_parser("av"); p.add_argument("--segs", required=True)
     p.add_argument("--narr", required=True); p.set_defaults(fn=cmd_av)
+
+    p = sub.add_parser("narr"); p.add_argument("--tts", nargs="+", required=True); p.set_defaults(fn=cmd_narr)
 
     p = sub.add_parser("asr"); p.add_argument("--video", required=True)
     p.add_argument("--gate-cmd", default="", help="外部听写闸门命令模板（经 shell 执行；{media} {require} 占位）")
