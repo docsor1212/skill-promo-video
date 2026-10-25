@@ -45,14 +45,11 @@ def main():
     src = Image.open(a.panel).convert("RGB")
     crop = src.crop((int(src.width * a.panel_left), 0, src.width, src.height))
     panel = crop.resize((W - x0, H), Image.LANCZOS).convert("RGBA")
-    mask = Image.new("L", panel.size, 255)
-    md = Image.new("L", (FL, H), 0)
-    import math
-    for x in range(FL):
-        md.paste(int(255 * (x / FL) ** 1.5), (x, 0), mask=None)
-    for y in range(H):
-        mask.paste(md, (0, y))
-    panel.putalpha(mask)
+    import numpy as np
+    mask_arr = np.full((H, W - x0), 255, dtype=np.uint8)
+    ramp = (np.linspace(0, 1, max(2, FL)) ** 1.5 * 255).astype(np.uint8)
+    mask_arr[:, :FL] = ramp[None, :]
+    panel.putalpha(Image.fromarray(mask_arr))
     tmpd = tempfile.mkdtemp(prefix="spv_comp_")
     panel_path = os.path.join(tmpd, "panel.png")
     panel.save(panel_path)
